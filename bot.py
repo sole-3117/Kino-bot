@@ -4,8 +4,8 @@ import json
 import os
 
 # TOKEN va ADMIN_ID
-TOKEN = 'BOT_TOKEN'
-ADMIN_ID = 615155352
+TOKEN = '7914898695:AAFwJjfMBwm95WnHuousMjV-UncVZTQq_Iw'
+ADMIN_ID = 6887251996
 
 bot = telebot.TeleBot(TOKEN)
 
