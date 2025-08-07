@@ -74,11 +74,11 @@ async def process_movie_code(message: types.Message):
             buttons = []
             for channel in channels:
                 buttons.append([InlineKeyboardButton(
-                    text=f"📢 {channel}",
+                    text=f"ð¢ {channel}",
                     url=f"https://t.me/{channel}"
                 )])
             buttons.append([InlineKeyboardButton(
-                text="✅ Tasdiqlash",
+                text="â Tasdiqlash",
                 callback_data="check_subscription"
             )])
             markup = InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -87,16 +87,16 @@ async def process_movie_code(message: types.Message):
         
         movie = await db.get_movie(code)
         if not movie:
-            await message.answer("⚠️ Bunday kodli kino topilmadi!")
+            await message.answer("â ï¸ Bunday kodli kino topilmadi!")
             return
             
         code, title, format, language, file_id, views, is_deleted = movie
         
-        caption = f"🎬 {title}\n"
-        caption += f"📝 Kod: {code}\n"
-        caption += f"📀 Format: {format}\n"
-        caption += f"🗣 Til: {language}\n"
-        caption += f"👁 Ko'rishlar: {views}"
+        caption = f"ð¬ {title}\n"
+        caption += f"ð Kod: {code}\n"
+        caption += f"ð Format: {format}\n"
+        caption += f"ð£ Til: {language}\n"
+        caption += f"ð Ko'rishlar: {views}"
         
         await bot.send_video(
             chat_id=user_id,
@@ -117,10 +117,10 @@ async def cmd_admin(message: types.Message):
             return
             
         stats = await db.get_stats()
-        admin_text = "📊 Bot statistikasi:\n\n"
-        admin_text += f"👥 Foydalanuvchilar: {stats['users']}\n"
-        admin_text += f"🎬 Kinolar: {stats['movies']}\n"
-        admin_text += f"👁 Umumiy ko'rishlar: {stats['total_views']}\n\n"
+        admin_text = "ð Bot statistikasi:\n\n"
+        admin_text += f"ð¥ Foydalanuvchilar: {stats['users']}\n"
+        admin_text += f"ð¬ Kinolar: {stats['movies']}\n"
+        admin_text += f"ð Umumiy ko'rishlar: {stats['total_views']}\n\n"
         admin_text += "Admin buyruqlari:\n"
         admin_text += "/addmovie - Kino qo'shish\n"
         admin_text += "/deletemovie - Kino o'chirish\n"
@@ -179,7 +179,7 @@ async def process_movie_title(message: Message, state: FSMContext):
             file_id=file_id
         )
         
-        await message.answer(f"✅ Kino qo'shildi!\nKod: {code}")
+        await message.answer(f"â Kino qo'shildi!\nKod: {code}")
         await state.finish()
     except Exception as e:
         await handle_error(message, e)
