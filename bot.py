@@ -1,9 +1,9 @@
 import logging
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Command
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.context import FSMContext
+from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -14,9 +14,9 @@ from database import Database
 logging.basicConfig(level=logging.INFO)
 
 # Bot va dispatcher yaratish
-bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
+bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
-dp = Dispatcher(bot, storage=storage)
+dp = Dispatcher(storage=storage)
 db = Database()
 scheduler = AsyncIOScheduler()
 
@@ -43,8 +43,8 @@ async def check_subscription(user_id: int) -> bool:
     return True
 
 # Start buyrug'i
-@dp.message_handler(commands=['start'])
-async def cmd_start(message: types.Message):
+@dp.message(Command("start"))
+async def cmd_start(message: Message):
     try:
         user_id = message.from_user.id
         username = message.from_user.username
@@ -60,11 +60,11 @@ async def cmd_start(message: types.Message):
         welcome_text = "Kinolar botiga xush kelibsiz! Kino kodini yuboring."
         await message.answer(welcome_text)
     except Exception as e:
-        await handle_error(message, e)
+        logging.error(f"Start error: {e}")
 
 # Kino kodi bilan ishlash
-@dp.message_handler(lambda message: message.text and message.text.isdigit())
-async def process_movie_code(message: types.Message):
+@dp.message(lambda message: message.text and message.text.isdigit())
+async def process_movie_code(message: Message):
     try:
         user_id = message.from_user.id
         code = int(message.text)
@@ -74,11 +74,11 @@ async def process_movie_code(message: types.Message):
             buttons = []
             for channel in channels:
                 buttons.append([InlineKeyboardButton(
-                    text=f"ð¢ {channel}",
+                    text=f"📢 {channel}",
                     url=f"https://t.me/{channel}"
                 )])
             buttons.append([InlineKeyboardButton(
-                text="â Tasdiqlash",
+                text="✅ Tasdiqlash",
                 callback_data="check_subscription"
             )])
             markup = InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -87,16 +87,16 @@ async def process_movie_code(message: types.Message):
         
         movie = await db.get_movie(code)
         if not movie:
-            await message.answer("â ï¸ Bunday kodli kino topilmadi!")
+            await message.answer("⚠️ Bunday kodli kino topilmadi!")
             return
             
         code, title, format, language, file_id, views, is_deleted = movie
         
-        caption = f"ð¬ {title}\n"
-        caption += f"ð Kod: {code}\n"
-        caption += f"ð Format: {format}\n"
-        caption += f"ð£ Til: {language}\n"
-        caption += f"ð Ko'rishlar: {views}"
+        caption = f"🎬 {title}\n"
+        caption += f"📝 Kod: {code}\n"
+        caption += f"📀 Format: {format}\n"
+        caption += f"🗣 Til: {language}\n"
+        caption += f"👁 Ko'rishlar: {views}"
         
         await bot.send_video(
             chat_id=user_id,
@@ -106,21 +106,21 @@ async def process_movie_code(message: types.Message):
         
         await db.increment_views(code)
     except Exception as e:
-        await handle_error(message, e)
+        logging.error(f"Movie code error: {e}")
 
 # Admin buyruqlari
-@dp.message_handler(commands=['admin'])
-async def cmd_admin(message: types.Message):
+@dp.message(Command("admin"))
+async def cmd_admin(message: Message):
     try:
         user_id = message.from_user.id
         if not await is_admin(user_id):
             return
             
         stats = await db.get_stats()
-        admin_text = "ð Bot statistikasi:\n\n"
-        admin_text += f"ð¥ Foydalanuvchilar: {stats['users']}\n"
-        admin_text += f"ð¬ Kinolar: {stats['movies']}\n"
-        admin_text += f"ð Umumiy ko'rishlar: {stats['total_views']}\n\n"
+        admin_text = "📊 Bot statistikasi:\n\n"
+        admin_text += f"👥 Foydalanuvchilar: {stats['users']}\n"
+        admin_text += f"🎬 Kinolar: {stats['movies']}\n"
+        admin_text += f"👁 Umumiy ko'rishlar: {stats['total_views']}\n\n"
         admin_text += "Admin buyruqlari:\n"
         admin_text += "/addmovie - Kino qo'shish\n"
         admin_text += "/deletemovie - Kino o'chirish\n"
@@ -133,57 +133,7 @@ async def cmd_admin(message: types.Message):
         
         await message.answer(admin_text)
     except Exception as e:
-        await handle_error(message, e)
-
-# Kino qo'shish
-@dp.message_handler(commands=['addmovie'])
-async def cmd_add_movie(message: types.Message, state: FSMContext):
-    try:
-        if not await is_admin(message.from_user.id):
-            return
-        await message.answer("Kino videosini yuboring.")
-        await state.set_state("waiting_for_video")
-    except Exception as e:
-        await handle_error(message, e)
-
-# Video qabul qilish
-@dp.message_handler(content_types=['video'], state="waiting_for_video")
-async def process_movie_video(message: Message, state: FSMContext):
-    try:
-        if not await is_admin(message.from_user.id):
-            return
-            
-        file_id = message.video.file_id
-        await state.update_data(file_id=file_id)
-        await message.answer("Kino nomini kiriting:")
-        await state.set_state("waiting_for_title")
-    except Exception as e:
-        await handle_error(message, e)
-        await state.finish()
-
-# Kino nomini qabul qilish
-@dp.message_handler(state="waiting_for_title")
-async def process_movie_title(message: Message, state: FSMContext):
-    try:
-        if not await is_admin(message.from_user.id):
-            return
-            
-        data = await state.get_data()
-        file_id = data.get('file_id')
-        title = message.text
-        
-        code = await db.add_movie(
-            title=title,
-            format="MP4",
-            language="O'zbek",
-            file_id=file_id
-        )
-        
-        await message.answer(f"â Kino qo'shildi!\nKod: {code}")
-        await state.finish()
-    except Exception as e:
-        await handle_error(message, e)
-        await state.finish()
+        logging.error(f"Admin command error: {e}")
 
 # Asosiy ishga tushirish
 async def main():
@@ -198,7 +148,7 @@ async def main():
         await db.add_admin(MAIN_ADMIN)
         
         # Botni ishga tushirish
-        await dp.start_polling()
+        await dp.start_polling(bot)
     except Exception as e:
         logging.error(f"Main error: {e}")
     finally:
