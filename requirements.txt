@@ -1,4 +1,6 @@
-aiogram==3.4.1
-aiohttp
-aiofiles
+python-telegram-bot==20.7
+anthropic
+httpx
+apscheduler
 python-dotenv
+aiosqlite
